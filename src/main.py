@@ -1,7 +1,80 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, HTTPException
+from contextlib import asynccontextmanager
+import os
+import sqlite3
 
-app = FastAPI()
+DB_PATH = os.path.join(os.path.dirname(__file__), "data", "database.db")
+
+def get_conn():
+	conn = sqlite3.connect(DB_PATH)
+	conn.row_factory = sqlite3.Row
+	return conn
+
+def init_db():
+	conn = get_conn()
+	cursor = conn.cursor()
+	cursor.execute("""
+		CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT NOT NULL UNIQUE,
+			email TEXT NOT NULL UNIQUE
+		)		
+	""")
+
+	# Pequeño seed de ejemplo
+	cursor.execute("SELECT COUNT(*) AS c FROM users")
+	if cursor.fetchone()["c"] == 0:
+		cursor.executemany(
+			"INSERT INTO users (username, email) VALUEs (?, ?)",
+			[
+				("bautista", "bautista@syper.com"),
+				("franco", "franco@syper.com"),
+				("josue", "josue@syper.com")
+			],
+		)
+	conn.commit()
+	conn.close()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+	init_db()
+
+	try:
+		yield
+	finally:
+		pass
+
+app = FastAPI(title="SyPeR Semgrep DEMO", lifespan=lifespan)
+
+# ENDPOINTS
 
 @app.get("/")
 def saludo():
 	return{"saludo":"Hola Semgrep"}
+
+# ==========================
+# 1) SQL Injection
+# ==========================
+
+@app.get("/users/search")
+def search_users(username: str = Query(..., description="Username a buscar")):
+	"""
+	Endpoint vulnerable a SQLi
+	Ejemplo de payload: ' OR '1'='1
+	"""
+	conn = get_conn()
+	cursor = conn.cursor()
+
+	# Concatenacion directa
+	query = f"SELECT id, username, email FROM users WHERE username = '{username}'"
+	cursor.execute(query)
+
+	# FIX:
+	# query = "SELECT id, username, email FROM users WHERE username = ?"
+	# cursor.execute(query, (username,))
+
+	rows = cursor.fetchall()
+	conn.close()
+
+	return {"query": query, "results": [dict(r) for r in rows]}
+
