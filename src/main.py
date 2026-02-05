@@ -78,3 +78,25 @@ def search_users(username: str = Query(..., description="Username a buscar")):
 
 	return {"query": query, "results": [dict(r) for r in rows]}
 
+# ============================================================
+# 2) Hardcoded Secret (TODO)
+# ============================================================
+
+# TODO: crear un archivo src/config.py con un "API_KEY = '...'"
+# y un endpoint /config que lo devuelva.
+# FIX: levantarlo de env var (os.environ o pydantic settings).
+
+
+# ============================================================
+# 3) Command Injection (TODO)
+# ============================================================
+
+# TODO (vulnerable): construir comando con input y pasarlo con shell=True
+# Fix: no usar shell=True y pasar lista de args, + validar host
+
+# ============================================================
+# 4) SSRF (TODO)
+# ============================================================
+
+# TODO (vulnerable): requests.get(url) directo
+# Fix: allowlist de dominios / bloquear IPs privadas / timeouts / etc.
