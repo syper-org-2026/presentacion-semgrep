@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  fastapi-app:
+    build: .
+    container_name: fastapi-container
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./requirements.txt:/app/requirements.txt
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
