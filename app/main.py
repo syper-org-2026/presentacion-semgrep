@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException
 from contextlib import asynccontextmanager
+from subprocess import run
 import os
 import sqlite3
 
@@ -89,11 +90,18 @@ def search_users(username: str = Query(..., description="Username a buscar")):
 
 
 # ============================================================
-# 3) Command Injection (TODO)
+# 3) Command Injection (Vulnerable)
 # ============================================================
 
-# TODO (vulnerable): construir comando con input y pasarlo con shell=True
-# Fix: no usar shell=True y pasar lista de args, + validar host
+@app.get("/ping")
+def ping_host(host: str = Query(..., description="Host a hacer ping")):
+    """
+    Endpoint vulnerable a Command Injection
+    Ejemplo de payload: 8.8.8.8; cat /etc/passwd
+    """
+    command = f"ping -c 1 {host}"
+    result = run(command, shell=True, capture_output=True, text=True)
+    return {"command": command, "output": result.stdout}
 
 # ============================================================
 # 4) SSRF (TODO)
