@@ -5,7 +5,7 @@ import os
 import sqlite3
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "database.db")
-ULTRA_SECRET_API_KEY = "sk-ijklmnopqrstuvwxijklmnopqrstuvwxijklmnop"
+ULTRA_SECRET_API_KEY = "sk-proj-Nz3BIzijIqwZehGsXnDGiXqFyUQj1KBORzH5ewhSXxVX4ggBYWVRAd7AelBsxzSlU-1aWtyznXT5BlNkFJfWXFkveZ7bBzZXyuJd172QZ_xlmF8qFkAAvTumBu9Gs9VKTEOtjIC8iCPOuAs0IICo14q4oOkA"
 
 def get_conn():
 	conn = sqlite3.connect(DB_PATH)
