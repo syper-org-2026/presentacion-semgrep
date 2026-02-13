@@ -18,6 +18,6 @@ uvicorn app.main:app --reload --port 8000
 ## To Do
 
 - [x] Vulnerabilidad SQL Injection
-- [ ] Uso inseguro de `eval` o Command Injection
+- [X] Uso inseguro de `eval` o Command Injection
 - [ ] Secret hardcodeado
 - [ ] SSRF (endpoint que hace request GET con una URL que viene del usuario)
