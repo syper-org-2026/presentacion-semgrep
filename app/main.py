@@ -109,3 +109,21 @@ def ping_host(host: str = Query(..., description="Host a hacer ping")):
 
 # TODO (vulnerable): requests.get(url) directo
 # Fix: allowlist de dominios / bloquear IPs privadas / timeouts / etc.
+
+# ============================================================
+# 5) Path Traversal (Vulnerable)
+# ============================================================
+
+@app.get("/readfile")
+def read_file(filename: str = Query(..., description="Archivo a leer dentro de /data")):
+    """
+    Endpoint vulnerable a Path Traversal
+    Ejemplo de payload: ../../.env
+    """
+    file_path = os.path.join(os.path.dirname(__file__), "data", filename)
+    try:
+        with open(file_path, "r") as f:
+            content = f.read()
+        return {"file": filename, "content": content}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
