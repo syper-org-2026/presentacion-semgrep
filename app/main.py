@@ -182,17 +182,25 @@ def external_fetch(url: str = Query(..., description="URL externa permitida")):
 
 @app.get("/readfile")
 def read_file(filename: str = Query(..., description="Archivo a leer dentro de /data")):
-    """
-    Endpoint vulnerable a Path Traversal
-    Ejemplo de payload: ../../.env
-    """
-    file_path = os.path.join(os.path.dirname(__file__), "data", filename)
+
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
+    requested_path = os.path.abspath(os.path.join(base_dir, filename))
+
+    # Verificar que el archivo esté dentro de /data
+    if not requested_path.startswith(base_dir):
+        raise HTTPException(status_code=400, detail="Acceso no permitido")
+
+    if not os.path.isfile(requested_path):
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
     try:
-        with open(file_path, "r") as f:
+        with open(requested_path, "r") as f:
             content = f.read()
         return {"file": filename, "content": content}
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+
+    except Exception:
+        raise HTTPException(status_code=500, detail="Error al leer el archivo")
+
 
 # ============================================================
 # 6) SSRF (Vulnerable)
