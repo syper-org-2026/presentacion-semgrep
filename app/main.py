@@ -5,9 +5,11 @@ from pathlib import Path
 import os
 import sqlite3
 import requests
+import socket
+import ipaddress
+from urllib.parse import urlparse
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "database.db")
-ULTRA_SECRET_API_KEY = "sk-proj-Nz3BIzijIqwZehGsXnDGiXqFyUQj1KBORzH5ewhSXxVX4ggBYWVRAd7AelBsxzSlU-1aWtyznXT5BlNkFJfWXFkveZ7bBzZXyuJd172QZ_xlmF8qFkAAvTumBu9Gs9VKTEOtjIC8iCPOuAs0IICo14q4oOkA"
 
 def get_conn():
 	conn = sqlite3.connect(DB_PATH)
@@ -68,49 +70,110 @@ def search_users(username: str = Query(..., description="Username a buscar")):
 	"""
 	conn = get_conn()
 	cursor = conn.cursor()
-
-	# Concatenacion directa
-	query = f"SELECT id, username, email FROM users WHERE username = '{username}'"
-	cursor.execute(query)
-
-	# FIX:
-	# query = "SELECT id, username, email FROM users WHERE username = ?"
-	# cursor.execute(query, (username,))
+ 
+	#FIX:
+	query = "SELECT id, username, email FROM users WHERE username = ?"
+	cursor.execute(query, (username,))
 
 	rows = cursor.fetchall()
 	conn.close()
 
-	return {"query": query, "results": [dict(r) for r in rows]}
+	return {"results": [dict(r) for r in rows]}
+
 
 # ============================================================
 # 2) Hardcoded Secret (TODO)
 # ============================================================
-
+"""
 # TODO: crear un archivo src/config.py con un "API_KEY = '...'"
 # y un endpoint /config que lo devuelva.
 # FIX: levantarlo de env var (os.environ o pydantic settings).
 
-
+resuleto 
+"""
 # ============================================================
 # 3) Command Injection (Vulnerable)
 # ============================================================
 
+def is_valid_host(host: str) -> bool:
+    # Solo permite letras, números, punto y guión
+    pattern = r"^[a-zA-Z0-9.-]+$"
+    return re.match(pattern, host) is not None
+
+
 @app.get("/ping")
 def ping_host(host: str = Query(..., description="Host a hacer ping")):
-    """
-    Endpoint vulnerable a Command Injection
-    Ejemplo de payload: 8.8.8.8; cat /etc/passwd
-    """
-    command = f"ping -c 1 {host}"
-    result = run(command, shell=True, capture_output=True, text=True)
-    return {"command": command, "output": result.stdout}
 
+    if not is_valid_host(host):
+        raise HTTPException(status_code=400, detail="Host inválido")
+
+    try:
+        result = subprocess.run(
+            ["ping", "-c", "1", host],  # Lista segura
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return {"output": result.stdout}
+
+    except subprocess.CalledProcessError:
+        raise HTTPException(status_code=500, detail="Error ejecutando ping")
 # ============================================================
 # 4) SSRF (TODO)
 # ============================================================
-
+"""
 # TODO (vulnerable): requests.get(url) directo
 # Fix: allowlist de dominios / bloquear IPs privadas / timeouts / etc.
+"""
+
+def is_safe_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+
+        # Solo permitir http y https
+        if parsed.scheme not in ("http", "https"):
+            return False
+
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
+        # Resolver dominio a IP
+        ip = socket.gethostbyname(hostname)
+        ip_obj = ipaddress.ip_address(ip)
+
+        # Bloquear IPs privadas, loopback y reservadas
+        if (
+            ip_obj.is_private
+            or ip_obj.is_loopback
+            or ip_obj.is_reserved
+            or ip_obj.is_link_local
+        ):
+            return False
+
+        return True
+
+    except Exception:
+        return False
+    
+@app.get("/external-fetch")
+def external_fetch(url: str = Query(..., description="URL externa permitida")):
+
+    if not is_safe_url(url):
+        raise HTTPException(status_code=400, detail="URL no permitida")
+
+    try:
+        r = requests.get(url, timeout=3)
+        return {
+            "url": url,
+            "status_code": r.status_code,
+            "content": r.text[:300]
+        }
+
+    except requests.RequestException:
+        raise HTTPException(status_code=500, detail="Error al hacer la petición")
+
+ 
 
 # ============================================================
 # 5) Path Traversal (Vulnerable)
@@ -155,7 +218,11 @@ def ssrf(url: str = Query(..., description="URL a la que hacer la petición")):
         return {"url": url, "status_code": r.status_code, "content": r.text[:500]}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+    
 
+"""
 @app.get("/entregador-api")
 def entregador_api():
     return ULTRA_SECRET_API_KEY
+""" 
