@@ -187,27 +187,3 @@ def read_file(filename: str):
 
     except Exception:
         raise HTTPException(status_code=500, detail="Error leyendo archivo")
-
-# ============================================================
-# 6) SSRF (Vulnerable)
-# ============================================================
-
-@app.get("/ssrf")
-def ssrf(url: str = Query(..., description="URL a la que hacer la petición")):
-    """
-    Endpoint vulnerable a SSRF
-    Ejemplo de payload: http://alguna-pagina.com
-    """
-    try:
-        r = requests.get(url, timeout=3)
-        return {"url": url, "status_code": r.status_code, "content": r.text[:500]}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
-    
-
-"""
-@app.get("/entregador-api")
-def entregador_api():
-    return ULTRA_SECRET_API_KEY
-""" 
