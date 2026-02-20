@@ -182,31 +182,26 @@ def external_fetch(url: str = Query(..., description="URL externa permitida")):
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 
-@app.get("/readfile")
-def read_file(filename: str = Query(..., description="Archivo dentro de /data")):
-
-    # Bloqueo rápido de caracteres sospechosos
-    if ".." in filename or filename.startswith("/"):
-        raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
+@app.get("/readfile/{filename:path}")
+def read_file(filename: str):
 
     try:
         requested_path = (DATA_DIR / filename).resolve()
 
-        # Verificación fuerte: el archivo debe estar dentro de DATA_DIR
-        if DATA_DIR.resolve() not in requested_path.parents and requested_path != DATA_DIR.resolve():
+        # Verificar que esté dentro del directorio permitido
+        if not requested_path.is_relative_to(DATA_DIR.resolve()):
             raise HTTPException(status_code=400, detail="Acceso no permitido")
 
         if not requested_path.is_file():
             raise HTTPException(status_code=404, detail="Archivo no encontrado")
 
-        with requested_path.open("r") as f:
-            content = f.read()
-
-        return {"file": filename, "content": content}
+        return {
+            "file": filename,
+            "content": requested_path.read_text()
+        }
 
     except Exception:
-        raise HTTPException(status_code=500, detail="Error al leer el archivo")
-
+        raise HTTPException(status_code=500, detail="Error leyendo archivo")
 
 # ============================================================
 # 6) SSRF (Vulnerable)
