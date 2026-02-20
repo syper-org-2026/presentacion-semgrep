@@ -1,8 +1,7 @@
 from fastapi import FastAPI, Query, HTTPException
 from contextlib import asynccontextmanager
-#from subprocess import run
-import subprocess
-import re
+from subprocess import run
+from pathlib import Path
 import os
 import sqlite3
 import requests
@@ -180,22 +179,29 @@ def external_fetch(url: str = Query(..., description="URL externa permitida")):
 # 5) Path Traversal (Vulnerable)
 # ============================================================
 
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+
 @app.get("/readfile")
-def read_file(filename: str = Query(..., description="Archivo a leer dentro de /data")):
+def read_file(filename: str = Query(..., description="Archivo dentro de /data")):
 
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
-    requested_path = os.path.abspath(os.path.join(base_dir, filename))
-
-    # Verificar que el archivo esté dentro de /data
-    if not requested_path.startswith(base_dir):
-        raise HTTPException(status_code=400, detail="Acceso no permitido")
-
-    if not os.path.isfile(requested_path):
-        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    # Bloqueo rápido de caracteres sospechosos
+    if ".." in filename or filename.startswith("/"):
+        raise HTTPException(status_code=400, detail="Nombre de archivo inválido")
 
     try:
-        with open(requested_path, "r") as f:
+        requested_path = (DATA_DIR / filename).resolve()
+
+        # Verificación fuerte: el archivo debe estar dentro de DATA_DIR
+        if DATA_DIR.resolve() not in requested_path.parents and requested_path != DATA_DIR.resolve():
+            raise HTTPException(status_code=400, detail="Acceso no permitido")
+
+        if not requested_path.is_file():
+            raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+        with requested_path.open("r") as f:
             content = f.read()
+
         return {"file": filename, "content": content}
 
     except Exception:
