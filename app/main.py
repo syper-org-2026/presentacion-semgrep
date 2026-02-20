@@ -133,29 +133,26 @@ ALLOWED_DOMAINS = {
 }
     
 @app.get("/external-fetch")
-def external_fetch(path: str = Query(..., description="Path del recurso externo")):
+def external_fetch(resource_id: int = Query(..., description="ID del recurso permitido")):
     """
-    Solo permite requests a dominios en allowlist.
-    El usuario NO controla la URL completa.
+    El usuario NO controla la URL ni el path.
+    Solo puede elegir un ID numérico.
     """
 
-    base_url = "https://jsonplaceholder.typicode.com"
-
-    # El usuario solo controla el path
-    full_url = f"{base_url}/{path.lstrip('/')}"
-
-    parsed = urlparse(full_url)
-
-    if parsed.hostname not in ALLOWED_DOMAINS:
-        raise HTTPException(status_code=400, detail="Dominio no permitido")
+    base_url = "https://jsonplaceholder.typicode.com/posts"
 
     try:
-        r = requests.get(full_url, timeout=3)
+        r = requests.get(
+            base_url,
+            params={"id": resource_id},  # Se pasa como query param
+            timeout=3
+        )
+
         return {
-            "url": full_url,
             "status_code": r.status_code,
             "content": r.text[:300]
         }
+
     except requests.RequestException:
         raise HTTPException(status_code=500, detail="Error al hacer la petición")
  
