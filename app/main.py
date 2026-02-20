@@ -126,53 +126,38 @@ def ping_host(host: str = Query(..., description="Host a hacer ping")):
 # Fix: allowlist de dominios / bloquear IPs privadas / timeouts / etc.
 """
 
-def is_safe_url(url: str) -> bool:
-    try:
-        parsed = urlparse(url)
-
-        # Solo permitir http y https
-        if parsed.scheme not in ("http", "https"):
-            return False
-
-        hostname = parsed.hostname
-        if not hostname:
-            return False
-
-        # Resolver dominio a IP
-        ip = socket.gethostbyname(hostname)
-        ip_obj = ipaddress.ip_address(ip)
-
-        # Bloquear IPs privadas, loopback y reservadas
-        if (
-            ip_obj.is_private
-            or ip_obj.is_loopback
-            or ip_obj.is_reserved
-            or ip_obj.is_link_local
-        ):
-            return False
-
-        return True
-
-    except Exception:
-        return False
+ALLOWED_DOMAINS = {
+    "example.com",
+    "api.github.com",
+    "jsonplaceholder.typicode.com"
+}
     
 @app.get("/external-fetch")
-def external_fetch(url: str = Query(..., description="URL externa permitida")):
+def external_fetch(path: str = Query(..., description="Path del recurso externo")):
+    """
+    Solo permite requests a dominios en allowlist.
+    El usuario NO controla la URL completa.
+    """
 
-    if not is_safe_url(url):
-        raise HTTPException(status_code=400, detail="URL no permitida")
+    base_url = "https://jsonplaceholder.typicode.com"
+
+    # El usuario solo controla el path
+    full_url = f"{base_url}/{path.lstrip('/')}"
+
+    parsed = urlparse(full_url)
+
+    if parsed.hostname not in ALLOWED_DOMAINS:
+        raise HTTPException(status_code=400, detail="Dominio no permitido")
 
     try:
-        r = requests.get(url, timeout=3)
+        r = requests.get(full_url, timeout=3)
         return {
-            "url": url,
+            "url": full_url,
             "status_code": r.status_code,
             "content": r.text[:300]
         }
-
     except requests.RequestException:
         raise HTTPException(status_code=500, detail="Error al hacer la petición")
-
  
 
 # ============================================================
